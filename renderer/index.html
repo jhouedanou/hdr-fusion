@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'">
+<title>HDR Fusion</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <h1>HDR Fusion</h1>
+  <p id="summary" class="summary"></p>
+  <div class="bar-actions">
+    <button id="clear" class="quiet" hidden>Vider la liste</button>
+    <button id="add">Ajouter des images</button>
+  </div>
+</header>
+
+<main>
+  <section id="list-pane" class="list-pane">
+    <div id="empty" class="empty">
+      <div class="empty-ladder" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <h2>Déposez un dossier de brackets</h2>
+      <p>Les vues prises au même instant sont regroupées en séries. Chaque série devient un seul DNG HDR.</p>
+      <button id="add-empty" class="primary">Choisir des images ou un dossier</button>
+    </div>
+    <div id="scale" class="scale" hidden>
+      <span class="scale-title">Exposition de chaque vue</span>
+      <div class="scale-axis"><span>sombre, pose longue</span><span>lumineux, pose courte</span></div>
+    </div>
+    <ol id="groups" class="groups"></ol>
+  </section>
+
+  <aside class="settings">
+    <fieldset>
+      <legend>Moteur</legend>
+      <div class="seg two" id="engine" role="radiogroup" aria-label="Moteur de fusion">
+        <button role="radio" data-v="lightcraft" aria-checked="true">LightCraft</button>
+        <button role="radio" data-v="hdrmerge">HDRMerge</button>
+      </div>
+      <p id="engineHint" class="hint"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Sortie</legend>
+      <label class="field">
+        <span>Dossier</span>
+        <select id="outMode">
+          <option value="sub">Sous-dossier « HDR » à côté des sources</option>
+          <option value="same">Même dossier que les sources</option>
+          <option value="custom">Autre dossier…</option>
+        </select>
+      </label>
+      <p id="outDirLabel" class="path" hidden></p>
+      <label class="field">
+        <span>Nom du fichier</span>
+        <input id="tpl" type="text" spellcheck="false" value="{premier}-{dernier}_HDR">
+      </label>
+      <p id="tplPreview" class="hint"></p>
+      <label class="field only-lightcraft">
+        <span>Image développée</span>
+        <select id="exportFormat">
+          <option value="tiff">TIFF 16 bits, en plus du DNG</option>
+          <option value="jpeg">JPEG, en plus du DNG</option>
+          <option value="none">Aucune, DNG seul</option>
+        </select>
+      </label>
+      <div class="field only-hdrmerge">
+        <span>Profondeur</span>
+        <div class="seg" id="bits" role="radiogroup" aria-label="Profondeur">
+          <button role="radio" data-v="16">16 bits</button>
+          <button role="radio" data-v="24" aria-checked="true">24 bits</button>
+          <button role="radio" data-v="32">32 bits</button>
+        </div>
+      </div>
+      <label class="check"><input id="overwrite" type="checkbox"> Remplacer les fichiers existants</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Fusion</legend>
+      <label class="check only-lightcraft"><input id="develop" type="checkbox" checked> Développer selon la scène, jour ou nuit</label>
+      <label class="check only-hdrmerge"><input id="keepSize" type="checkbox" checked> Conserver la taille d'origine</label>
+      <label class="check"><input id="align" type="checkbox"> Aligner les vues</label>
+      <p class="hint">Pour une Theta sur trépied, laissez l'alignement désactivé : l'assemblage 360 exige des images non décalées.</p>
+      <label class="field only-lightcraft">
+        <span>Sujets en mouvement</span>
+        <select id="deghost">
+          <option value="none">Ne rien corriger</option>
+          <option value="low">Correction légère</option>
+          <option value="medium">Correction moyenne</option>
+          <option value="high">Correction forte</option>
+        </select>
+      </label>
+      <label class="field only-hdrmerge">
+        <span>Fondu entre les vues <output id="radiusOut">3 px</output></span>
+        <input id="radius" type="range" min="0" max="12" step="1" value="3">
+      </label>
+      <label class="field only-hdrmerge">
+        <span>Fusions en parallèle <output id="parallelOut">1</output></span>
+        <input id="parallel" type="range" min="1" max="3" step="1" value="1">
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Regroupement</legend>
+      <label class="field">
+        <span>Écart maximal entre deux vues <output id="gapOut">2 s</output></span>
+        <input id="gap" type="range" min="0" max="30" step="1" value="2">
+      </label>
+      <p class="hint">Cliquez entre deux vignettes pour couper une série. Une série mal coupée se rattache à la précédente depuis son en-tête.</p>
+    </fieldset>
+  </aside>
+</main>
+
+<footer class="foot">
+  <div class="foot-status">
+    <p id="footText"></p>
+    <div class="track" id="overallTrack" hidden><div id="overallBar"></div></div>
+  </div>
+  <button id="stop" class="quiet" hidden>Arrêter</button>
+  <button id="go" class="primary" disabled>Fusionner</button>
+</footer>
+
+<div id="drop" class="drop" hidden><p>Déposez pour ajouter</p></div>
+<script src="app.js"></script>
+</body>
+</html>

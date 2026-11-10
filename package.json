@@ -1,0 +1,17 @@
+{
+  "name": "hdr-fusion",
+  "productName": "HDR Fusion",
+  "version": "0.1.0",
+  "description": "Fusion HDR par lots de brackets RAW (HDRMerge en coulisse)",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "exifr": "^7.1.3"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}
