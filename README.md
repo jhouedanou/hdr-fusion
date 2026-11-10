@@ -6,15 +6,21 @@ Déposez un dossier : les vues prises au même instant sont regroupées en séri
 
 ## Moteurs
 
-- **LightCraft** : fusionne, développe avec des réglages jour ou nuit choisis selon l'exposition de la série, puis exporte un TIFF 16 bits ou un JPEG en plus du DNG. LightCraft est piloté par son canal de contrôle, dans une session temporaire qui ne touche pas à la bibliothèque.
+- **LightCraft** : fusionne, développe avec des réglages jour ou nuit choisis selon l'exposition de la série, puis exporte un TIFF 16 bits ou un JPEG en plus du DNG. Le traitement passe par `lightcraft-cli`, sans fenêtre et sans toucher à la bibliothèque ; à défaut, l'app LightCraft est pilotée par son canal de contrôle.
 - **HDRMerge** : fusion seule, en DNG flottant plus léger.
 
 Netteté et réduction du bruit sont désactivées dans les réglages de développement : le débruitage se fait ensuite, sur une image non accentuée.
 
+## Installer
+
+Téléchargez `HDR-Fusion-<version>-macos-arm64.zip` depuis les [releases](https://github.com/jhouedanou/hdr-fusion/releases), décompressez et glissez `HDR Fusion.app` dans Applications. L'app n'est pas signée : au premier lancement, clic droit puis Ouvrir, ou `xattr -dr com.apple.quarantine "/Applications/HDR Fusion.app"`.
+
+Depuis les sources, `npm run install-app` empaquette l'app et la copie dans Applications.
+
 ## Prérequis
 
 - macOS, Node.js 20 ou plus récent
-- `/Applications/LightCraft.app` et/ou `/Applications/HDRMerge.app`
+- `lightcraft-cli` (dans `~/.local/bin`, archive séparée des releases LightCraft) ou `/Applications/LightCraft.app`, et/ou `/Applications/HDRMerge.app`
 
 ## Lancer
 

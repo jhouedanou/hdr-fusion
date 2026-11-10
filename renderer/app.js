@@ -77,7 +77,7 @@ function paintEngine() {
   const lc = engine() === 'lightcraft';
   document.body.dataset.engine = engine();
   $('engineHint').textContent = lc
-    ? 'Fusionne, développe avec les réglages Theta et exporte. LightCraft s\'ouvre le temps du traitement, sans toucher à votre bibliothèque.'
+    ? 'Fusionne, développe avec les réglages Theta et exporte. Le traitement se fait en arrière-plan, sans toucher à votre bibliothèque.'
     : 'Fusion seule, en DNG flottant plus léger. Le fichier sort sombre et se développe à la main.';
 }
 

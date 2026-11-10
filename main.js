@@ -243,6 +243,26 @@ function runJob(bin, job, opts, send) {
 async function mergeWithLightcraft(jobs, opts, send) {
   if (!lightcraft.available()) return { error: 'LightCraft introuvable dans Applications' };
   cancelled = false;
+  const cli = lightcraft.findCli();
+  if (cli) {
+    for (const job of jobs) {
+      if (cancelled) break;
+      if (fs.existsSync(job.out) && !opts.overwrite) {
+        send({ id: job.id, state: 'skipped', msg: 'Le fichier existe déjà' });
+        continue;
+      }
+      try {
+        await lightcraft.runJobCli(cli, job, opts, send, (child) => {
+          running.add(child);
+          child.on('close', () => running.delete(child));
+        });
+      } catch (err) {
+        send({ id: job.id, state: cancelled ? 'cancelled' : 'error', msg: cancelled ? 'Arrêté' : err.message });
+      }
+    }
+    return { cancelled };
+  }
+  // No CLI installed: drive the desktop app through its control channel instead.
   lcSession = new lightcraft.Session();
   try {
     send({ id: jobs[0].id, state: 'running', pct: 0, msg: 'Démarrage de LightCraft' });

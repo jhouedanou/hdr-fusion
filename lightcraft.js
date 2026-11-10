@@ -28,7 +28,15 @@ const LOOKS = {
   },
 };
 
-const available = () => fs.existsSync(BIN);
+const os = require('os');
+const CLI_CANDIDATES = [
+  path.join(os.homedir(), '.local/bin/lightcraft-cli'),
+  '/opt/homebrew/bin/lightcraft-cli',
+  '/usr/local/bin/lightcraft-cli',
+];
+// The headless CLI needs no window, so it cannot stall when LightCraft is covered.
+const findCli = () => CLI_CANDIDATES.find((p) => fs.existsSync(p)) || null;
+const available = () => !!findCli() || fs.existsSync(BIN);
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -217,4 +225,92 @@ async function runJob(session, job, opts, send) {
   }
 }
 
-module.exports = { available, Session, runJob, LOOKS, COMMON };
+const STEPS = {
+  'merge.hdr': [60, 'Développement'],
+  'photo.saveMetadataToFile': [75, 'Export'],
+  'app.export': [95, 'Rangement'],
+};
+
+// One headless process per series: import, merge, develop, write the sidecar, export.
+// Returns a handle so the caller can kill it.
+function runJobCli(cli, job, opts, send, onChild) {
+  return new Promise((resolve, reject) => {
+    const outDir = path.dirname(job.out);
+    const base = path.basename(job.out, path.extname(job.out));
+    const n = job.files.length;
+    const ids = JSON.stringify(Array.from({ length: n }, (_, i) => i + 1));
+    const merged = JSON.stringify([n + 1]);
+    const exporting = opts.exportFormat && opts.exportFormat !== 'none';
+
+    const args = ['run'];
+    for (const f of job.files) args.push('--import', f);
+    args.push('merge.hdr', `ids=${ids}`, `align=${!!opts.align}`, `deghost=${opts.deghost || 'none'}`, 'autoSettings=false', 'stack=false');
+    if (opts.develop) {
+      const look = LOOKS[job.scene === 'day' ? 'day' : 'night'];
+      args.push('library.select', `ids=${merged}`);
+      args.push('develop.merge', `settings=${JSON.stringify({ ...COMMON, ...look })}`, 'label=Theta HDR');
+      args.push('develop.wb', 'mode=auto');
+      args.push('photo.saveMetadataToFile', `ids=${merged}`);
+    }
+    if (exporting) {
+      fs.mkdirSync(outDir, { recursive: true });
+      args.push(
+        'app.export', `ids=${merged}`, `dir=${outDir}`, 'destinationMode=specificFolder',
+        `format=${opts.exportFormat}`, `naming=${base}`, 'longEdge=0', 'colorSpace=srgb', 'metadata=all',
+        'sharpen=none', `conflict=${opts.overwrite ? 'overwrite' : 'unique'}`, 'background=false'
+      );
+      if (opts.exportFormat === 'tiff') args.push('bitDepth=16', 'tiffCompression=None');
+      if (opts.exportFormat === 'jpeg') args.push('quality=95');
+    }
+
+    send({ id: job.id, state: 'running', pct: 5, msg: 'Fusion HDR' });
+    const child = spawn(cli, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    onChild(child);
+    const results = {};
+    let failure = null;
+    let buf = '';
+    let errTail = '';
+    child.stdout.on('data', (d) => {
+      buf += d;
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl);
+        buf = buf.slice(nl + 1);
+        let msg;
+        try {
+          msg = JSON.parse(line);
+        } catch {
+          continue;
+        }
+        if (!msg.ok) failure = failure || `${msg.command} : ${msg.error}`;
+        else results[msg.command] = msg.result;
+        const step = STEPS[msg.command];
+        if (step && msg.ok) send({ id: job.id, state: 'running', pct: step[0], msg: step[1] });
+      }
+    });
+    child.stderr.on('data', (d) => (errTail = (errTail + d).slice(-300)));
+    child.on('error', reject);
+    child.on('close', (code) => {
+      const m = results['merge.hdr'];
+      const sidecar = ((results['photo.saveMetadataToFile'] || {}).written || [])[0] || null;
+      const cleanup = () => {
+        for (const f of [m && m.path, sidecar]) if (f && fs.existsSync(f)) fs.rmSync(f, { force: true });
+      };
+      try {
+        if (failure || code !== 0 || !m) throw new Error(failure || errTail.trim() || `lightcraft-cli a quitté avec le code ${code}`);
+        // The presets assume the first frame of the bracket is the reference exposure.
+        if (m.id !== n + 1 || m.reference !== 1) throw new Error('Fusion faite sur une référence inattendue');
+        moveFile(m.path, job.out);
+        if (sidecar && fs.existsSync(sidecar)) moveFile(sidecar, path.join(outDir, `${base}.xmp`));
+        const exported = exporting ? (results['app.export'].files || []).map((f) => f.path) : [];
+        send({ id: job.id, state: 'done', out: exported[0] || job.out });
+        resolve();
+      } catch (err) {
+        cleanup();
+        reject(err);
+      }
+    });
+  });
+}
+
+module.exports = { available, findCli, Session, runJob, runJobCli, LOOKS, COMMON };
